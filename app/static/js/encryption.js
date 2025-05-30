@@ -8,10 +8,6 @@
 // --- END IMPORTANT PREFACE ---
 
 const SEED_STORAGE_KEY = 'onionShortenerSeedPhrase';
-// IMPORTANT: The user MUST change this PBKDF2_SALT to a unique, random string for their application.
-const PBKDF2_SALT = "a_static_application_wide_salt_for_pbkdf2_change_this_in_production"; 
-const PBKDF2_ITERATIONS = 10000; // Number of iterations for PBKDF2
-const KEY_SIZE_BITS = 256; // AES-256
 
 // A simple list of 4-character words for seed phrase generation.
 // For a real application, use a more comprehensive and vetted wordlist (e.g., BIP39).
@@ -26,32 +22,8 @@ function generateUserSeedPhrase(numWords = 6) {
     return phrase.join(' ');
 }
 
-function deriveKeyFromSeed(seedPhrase) {
-    console.log('deriveKeyFromSeed: Called with seedPhrase (first 10 chars):', seedPhrase ? seedPhrase.substring(0, 10) + '...' : 'null/undefined');
-    console.log('deriveKeyFromSeed: CryptoJS available?', typeof CryptoJS !== 'undefined');
-    if (typeof CryptoJS === 'undefined') {
-        console.error("CryptoJS library is not loaded. Cannot derive key.");
-        return null;
-    }
-    if (!seedPhrase) {
-        console.error("Seed phrase is empty. Cannot derive key.");
-        return null;
-    }
-    // The salt should be a WordArray for PBKDF2
-    const salt = CryptoJS.enc.Utf8.parse(PBKDF2_SALT); 
-
-    const key = CryptoJS.PBKDF2(seedPhrase, salt, {
-        keySize: KEY_SIZE_BITS / 32, // keySize is in 32-bit words
-        iterations: PBKDF2_ITERATIONS,
-        hasher: CryptoJS.algo.SHA256 // Explicitly specify SHA256 as the hasher algorithm
-    });
-    console.log('deriveKeyFromSeed: Derived key (first 10 chars of hex):', key ? key.toString(CryptoJS.enc.Hex).substring(0, 10) + '...' : 'null/undefined');
-    return key; // This is a WordArray
-}
-
 function encryptText(plainText, seedPhrase) {
     console.log('encryptText: Called with plainText (first 10 chars):', plainText ? plainText.substring(0, 10) + '...' : 'null/undefined', 'and seedPhrase (first 10 chars):', seedPhrase ? seedPhrase.substring(0, 10) + '...' : 'null/undefined');
-    console.log('encryptText: CryptoJS available?', typeof CryptoJS !== 'undefined');
     if (typeof CryptoJS === 'undefined') {
         console.error("CryptoJS library is not loaded. Cannot encrypt.");
         return null;
@@ -61,19 +33,15 @@ function encryptText(plainText, seedPhrase) {
         return null;
     }
 
-    const derivedKey = deriveKeyFromSeed(seedPhrase);
-    console.log('encryptText: Derived key for encryption (first 10 chars of hex):', derivedKey ? derivedKey.toString(CryptoJS.enc.Hex).substring(0, 10) + '...' : 'null/undefined');
-    if (!derivedKey) return null;
-
     try {
-        const encrypted = CryptoJS.AES.encrypt(plainText, derivedKey, {
-            mode: CryptoJS.mode.CBC, 
-            padding: CryptoJS.pad.Pkcs7
-        });
-        console.log('encryptText: Encryption successful. Ciphertext (first 10 chars):', encrypted ? encrypted.toString().substring(0, 10) + '...' : 'null/undefined');
+        const plainTextWordArray = CryptoJS.enc.Utf8.parse(plainText);
+        // Use seedPhrase directly as the passphrase
+        const encrypted = CryptoJS.AES.encrypt(plainTextWordArray, seedPhrase); 
+        
+        console.log('encryptText: Encryption successful (using seed as passphrase). Ciphertext (first 10 chars):', encrypted ? encrypted.toString().substring(0, 10) + '...' : 'null/undefined');
         return encrypted.toString(); 
     } catch (e) {
-        console.error("Encryption failed IN CATCH BLOCK:", e, e.stack);
+        console.error("Encryption failed IN CATCH BLOCK (using seed as passphrase):", e, e.stack);
         return null;
     }
 }
@@ -88,22 +56,18 @@ function decryptText(cipherTextString, seedPhrase) {
         return null;
     }
 
-    const derivedKey = deriveKeyFromSeed(seedPhrase);
-    if (!derivedKey) return null;
-
     try {
-        const decrypted = CryptoJS.AES.decrypt(cipherTextString, derivedKey, {
-            mode: CryptoJS.mode.CBC,
-            padding: CryptoJS.pad.Pkcs7
-        });
+        // Use seedPhrase directly as the passphrase
+        const decrypted = CryptoJS.AES.decrypt(cipherTextString, seedPhrase);
         const originalText = decrypted.toString(CryptoJS.enc.Utf8);
 
         if (!originalText && cipherTextString) {
-            console.warn("Decryption resulted in an empty string. This might indicate a problem (e.g., incorrect key or corrupted data).");
+            console.warn("Decryption resulted in an empty string (using seed as passphrase). This might indicate a problem.");
         }
+        console.log('decryptText: Decryption attempt finished (using seed as passphrase). Resulting text (first 10 chars):', originalText ? originalText.substring(0, 10) + '...' : '(empty or null)');
         return originalText;
     } catch (e) {
-        console.error("Decryption failed:", e);
+        console.error("Decryption failed IN CATCH BLOCK (using seed as passphrase):", e, e.stack);
         return null;
     }
 }
@@ -122,24 +86,119 @@ function ensureSeedIsAvailable() {
         seed = generateUserSeedPhrase();
         storeSeed(seed);
     }
+    // If a new seed was generated, open the management dialog to show it with a warning.
+    if (isNewSeed) {
+        openSeedManagementDialog(seed); // Pass the newly generated seed
+    }
     return seed;
 }
 
-function displaySeedWarning(seedPhrase, dialogElementId) {
-    const dialog = document.getElementById(dialogElementId);
-    if (dialog) {
-        const seedDisplay = dialog.querySelector('.seed-phrase-display');
-        if (seedDisplay) seedDisplay.textContent = seedPhrase;
-        dialog.style.display = 'flex'; 
-    } else {
-        alert(
-`Keep this seed phrase secret and safe!
-Your personal seed phrase is:
+function openSeedManagementDialog(isFirstTimeGeneratedSeed = null) {
+    const dialog = document.getElementById('seedManagementDialog');
+    if (!dialog) {
+        console.error("Seed management dialog not found in DOM.");
+        // Fallback alert if dialog is missing, for newly generated seed
+        if (isFirstTimeGeneratedSeed) {
+            alert(
+`IMPORTANT: Your new recovery seed phrase is:
 
-${seedPhrase}
+${isFirstTimeGeneratedSeed}
 
-You will need this phrase to access your links if you clear your browser data or use a different browser.
-Nobody, not even administrators, can recover your links or your seed without this seed phrase.`
-        );
+Please copy this and store it in a secret and safe place.
+You will need this phrase to access your links if you clear your browser data or use a different browser.`
+            );
+        }
+        return;
     }
+
+    const titleEl = document.getElementById('seedDialogTitle');
+    const currentDisplayEl = document.getElementById('currentSeedPhraseDisplay');
+    const manualInputEl = document.getElementById('manualSeedInput');
+    const warningSectionEl = document.getElementById('seedWarningSection');
+    const displaySectionEl = document.getElementById('seedDisplaySection'); // Assuming this is the parent of currentSeedPhraseDisplay
+    const statusEl = document.getElementById('seedActionStatus');
+
+    const seedToDisplay = isFirstTimeGeneratedSeed || getStoredSeed();
+
+    if (seedToDisplay) {
+        if (currentDisplayEl) currentDisplayEl.textContent = seedToDisplay;
+        if (manualInputEl) manualInputEl.value = seedToDisplay; // Pre-fill for editing
+        if (displaySectionEl) displaySectionEl.style.display = 'block';
+    } else {
+        if (currentDisplayEl) currentDisplayEl.textContent = '(No seed currently stored)';
+        if (manualInputEl) manualInputEl.value = '';
+        // Decide if displaySectionEl should be hidden or shown with "no seed" message
+        if (displaySectionEl) displaySectionEl.style.display = 'block'; 
+    }
+
+    if (isFirstTimeGeneratedSeed) {
+        if (titleEl) titleEl.textContent = 'IMPORTANT: Your Recovery Seed Phrase!';
+        if (warningSectionEl) warningSectionEl.style.display = 'block';
+    } else {
+        if (titleEl) titleEl.textContent = 'Manage Your Seed Phrase';
+        if (warningSectionEl) warningSectionEl.style.display = 'none';
+    }
+
+    if (statusEl) statusEl.textContent = ''; // Clear previous status
+    dialog.style.display = 'flex';
+}
+
+function saveSeedFromInput() {
+    const manualInputEl = document.getElementById('manualSeedInput');
+    const currentDisplayEl = document.getElementById('currentSeedPhraseDisplay');
+    const statusEl = document.getElementById('seedActionStatus');
+    const warningSectionEl = document.getElementById('seedWarningSection');
+    const titleEl = document.getElementById('seedDialogTitle');
+
+    if (!manualInputEl || !currentDisplayEl || !statusEl || !warningSectionEl || !titleEl) {
+        console.error("One or more dialog elements not found for saveSeedFromInput.");
+        return;
+    }
+
+    const newSeed = manualInputEl.value.trim();
+
+    // Basic validation: check if not empty and maybe word count (e.g., at least 2 words)
+    if (!newSeed || newSeed.split(' ').length < 2) {
+        statusEl.textContent = 'Error: Seed phrase must not be empty and should contain multiple words.';
+        statusEl.className = 'text-sm text-red-400 mt-3'; // Error color
+        return;
+    }
+    // Could add more validation here (e.g. check against FOUR_CHAR_WORD_LIST if desired, or length)
+
+    storeSeed(newSeed);
+    currentDisplayEl.textContent = newSeed;
+    statusEl.textContent = 'Seed saved to browser localStorage!';
+    statusEl.className = 'text-sm text-green-400 mt-3'; // Success color
+
+    // Hide the "new seed" warning if it was visible, and reset title
+    warningSectionEl.style.display = 'none';
+    titleEl.textContent = 'Manage Your Seed Phrase';
+    
+    document.dispatchEvent(new Event('seedUpdated')); // Notify other parts of the app
+}
+
+function clearStoredSeedFromDialog() {
+    const currentDisplayEl = document.getElementById('currentSeedPhraseDisplay');
+    const manualInputEl = document.getElementById('manualSeedInput');
+    const statusEl = document.getElementById('seedActionStatus');
+     const warningSectionEl = document.getElementById('seedWarningSection');
+    const titleEl = document.getElementById('seedDialogTitle');
+
+
+    if (!currentDisplayEl || !manualInputEl || !statusEl || !warningSectionEl || !titleEl) {
+        console.error("One or more dialog elements not found for clearStoredSeedFromDialog.");
+        return;
+    }
+
+    localStorage.removeItem(SEED_STORAGE_KEY);
+    currentDisplayEl.textContent = '(No seed currently stored)';
+    manualInputEl.value = '';
+    statusEl.textContent = 'Stored seed cleared from browser localStorage!';
+    statusEl.className = 'text-sm text-green-400 mt-3';
+
+    // Hide the "new seed" warning if it was visible, and reset title
+    warningSectionEl.style.display = 'none';
+    titleEl.textContent = 'Manage Your Seed Phrase';
+
+    document.dispatchEvent(new Event('seedUpdated')); // Notify other parts of the app
 }

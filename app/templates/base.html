@@ -47,14 +47,32 @@
         </footer>
     </div>
 
-    <div id="seedPhraseDialog" class="seed-dialog-overlay">
-        <div class="seed-dialog-content">
-            <h2 class="text-2xl font-bold mb-4 text-yellow-400">IMPORTANT: Your Recovery Seed Phrase!</h2>
-            <p class="mb-2">Please copy this seed phrase and store it in a <strong>secret and safe</strong> place.</p>
-            <p class="mb-4">If you lose this seed, you will <strong>permanently lose access</strong> to your shortened URLs. Nobody, not even administrators, can recover your links or your seed without this phrase.</p>
-            <div class="seed-phrase-display"></div>
-            <p class="mt-4 text-sm text-gray-400">You can view this seed again by clicking "Show My Seed" in the navigation bar.</p>
-            <button onclick="document.getElementById('seedPhraseDialog').style.display = 'none'">I've Copied It Safely</button>
+    <div id="seedManagementDialog" class="seed-dialog-overlay" style="display:none; align-items:center; justify-content:center;">
+        <div class="seed-dialog-content w-11/12 max-w-lg">
+            <h2 id="seedDialogTitle" class="text-2xl font-bold mb-4 text-yellow-400">Manage Your Seed Phrase</h2>
+            
+            <div id="seedDisplaySection">
+                <p class="mb-2">Your current recovery seed phrase (keep it secret and safe!):</p>
+                <div id="currentSeedPhraseDisplay" class="seed-phrase-display text-gray-400">(No seed currently stored or displayed)</div>
+            </div>
+
+            <div id="seedWarningSection" class="mt-4" style="display:none;"> <!-- Initially hidden, shown for first-time seed generation -->
+                 <p class="mb-2 text-red-400 font-bold">IMPORTANT: This is your new seed phrase!</p>
+                 <p class="mb-2">Please copy this new seed phrase and store it in a <strong>secret and safe</strong> place.</p>
+                 <p class="mb-4">If you lose this seed, you will <strong>permanently lose access</strong> to your shortened URLs. Nobody, not even administrators, can recover your links or your seed without this phrase.</p>
+            </div>
+
+            <div class="mt-6">
+                <label for="manualSeedInput" class="block text-gray-300 text-sm font-bold mb-2 text-left">Enter or Paste Seed Phrase:</label>
+                <textarea id="manualSeedInput" class="w-full p-2 rounded bg-gray-900 border border-gray-600 focus:border-green-500 text-gray-200" rows="3" placeholder="Enter your 6-word seed phrase..."></textarea>
+            </div>
+
+            <div class="mt-4 flex flex-wrap justify-center gap-2">
+                <button id="saveSeedButton" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded">Save to Browser</button>
+                <button id="clearSeedButton" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded">Clear Stored Seed</button>
+                <button id="closeSeedDialogButton" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded">Close</button>
+            </div>
+            <p id="seedActionStatus" class="text-sm text-green-400 mt-3"></p> <!-- For status messages -->
         </div>
     </div>
 
