@@ -9,7 +9,7 @@
     <form id="shortenUrlForm" action="{{ url_for('main.index') }}" method="POST" class="w-full max-w-xl mx-auto bg-gray-700 p-6 sm:p-8 rounded-lg shadow-2xl">
         <div class="mb-6">
             <label for="original_url_plaintext" class="block text-gray-300 text-sm font-bold mb-2 text-left">Original Long URL (must start with http:// or https://):</label>
-            <input type="url" name="original_url_plaintext" id="original_url_plaintext" 
+            <input type="url" name="original_url_plaintext" id="original_url_plaintext"
                    placeholder="e.g., http://yourverylongonionaddressxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.onion/some/path" 
                    required 
                    class="shadow appearance-none border border-gray-600 rounded w-full py-3 px-4 bg-gray-800 text-gray-100 leading-tight focus:outline-none focus:shadow-outline focus:border-green-500">
@@ -88,7 +88,7 @@ document.addEventListener('DOMContentLoaded', function() {
     showSeedBtn.addEventListener('click', function() {
         // Calls the new dialog function from encryption.js.
         // No arguments means it will try to display existing seed or an empty state.
-        openSeedManagementDialog(); 
+        openSeedManagementDialog();
     });
 
     // Add event listeners for the new seed management dialog buttons
@@ -136,7 +136,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Basic client-side validation, though server won't see plaintext.
                 // Consider more robust validation if needed.
                 alert("Original URL must start with http:// or https://.");
-                event.preventDefault(); 
+                event.preventDefault();
                 return;
             }
 
@@ -161,7 +161,7 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log('Index.html JS: Encrypted URL from encryptText (first 10 chars):', encryptedUrl ? encryptedUrl.substring(0, 10) + '...' : 'null/undefined');
             if (!encryptedUrl) {
                 alert("Encryption failed. Could not shorten URL. Ensure your seed phrase is correct or available, and that crypto libraries are loaded.");
-                event.preventDefault(); 
+                event.preventDefault();
                 return;
             }
             originalUrlEncryptedInput.value = encryptedUrl;
@@ -169,11 +169,11 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     const shortUrlResultBlock = document.getElementById('shortenedUrlResult');
-    {% if original_url_encrypted_for_display %} 
+    {% if original_url_encrypted_for_display %}
     if (shortUrlResultBlock && originalUrlPlaintext) { // Check originalUrlPlaintext to ensure we are on index page after POST
         const decryptedDisplayP = document.getElementById('decryptedForDisplay');
         // Attempt to get the seed again, in case it was just generated.
-        const currentSeedForDisplay = getStoredSeed(); 
+        const currentSeedForDisplay = getStoredSeed();
         if (decryptedDisplayP && currentSeedForDisplay) {
             // The original_url_encrypted_for_display is the one that was just submitted and encrypted.
             const decrypted = decryptText("{{ original_url_encrypted_for_display | e }}", currentSeedForDisplay);

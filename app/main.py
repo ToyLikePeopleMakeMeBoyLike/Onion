@@ -65,7 +65,7 @@ def index():
             elif not alias_problem : # Failed to set short_code for other reasons
                  flash("Could not generate a unique short code. Please try again.", "error")
 
-    return render_template('index.html', 
+    return render_template('index.html',
                            short_url_display=short_url_display,
                            original_url_encrypted_for_display=original_url_encrypted_for_display)
 
@@ -85,8 +85,8 @@ def redirect_to_url(short_code):
             current_app.logger.error(f"Failed to update click count for {short_code}: {e}")
 
         # Serve a page that will perform client-side decryption and redirection
-        return render_template('redirector.html', 
-                               encrypted_url=encrypted_original_url, 
+        return render_template('redirector.html',
+                               encrypted_url=encrypted_original_url,
                                short_code=short_code)
     else:
         current_app.logger.warning(f"Short code '{short_code}' not found in database.")
@@ -108,13 +108,25 @@ def history():
                 'short_url_display': full_short_url,
                 'created_at': url_entry['created_at'],
                 'clicks': url_entry['clicks'],
-                'encrypted_description': url_entry['encrypted_description'] # Add this line
+                'encrypted_description': url_entry['encrypted_description'],
+                'short_code': url_entry['short_code'] # Add this line
             })
 
     return render_template('history.html', urls=urls_for_template)
 
-@bp.route('/update_description/<short_code>', methods=['POST'])
+@bp.route('/update_description/<short_code>', methods=['POST', 'OPTIONS'])
 def update_description(short_code):
+    if request.method == 'OPTIONS':
+        # This is a pre-flight request. Respond with 200 OK.
+        # Browsers send OPTIONS requests to check if the actual POST request is allowed.
+        # For same-origin requests with application/json, this might not always be strictly necessary
+        # but handling it can resolve 405 errors if the browser decides to send one.
+        response = current_app.make_default_options_response()
+        # If specific CORS headers were needed, they would be added here, e.g.:
+        # response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+        # response.headers.add('Access-Control-Allow-Methods', 'POST,OPTIONS')
+        return response
+
     current_app.logger.info(f"Attempting to update description for short code: {short_code}")
     data = request.get_json()
     if not data or 'encrypted_description' not in data:
@@ -130,7 +142,7 @@ def update_description(short_code):
         return jsonify({"success": False, "error": "Short code not found"}), 404
 
     try:
-        execute_db('UPDATE urls SET encrypted_description = ? WHERE short_code = ?', 
+        execute_db('UPDATE urls SET encrypted_description = ? WHERE short_code = ?',
                    [encrypted_description, short_code])
         current_app.logger.info(f"Successfully updated description for short code: {short_code}")
         return jsonify({"success": True}), 200
