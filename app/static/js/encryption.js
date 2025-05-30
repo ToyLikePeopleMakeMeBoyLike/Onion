@@ -82,12 +82,15 @@ function storeSeed(seedPhrase) {
 
 function ensureSeedIsAvailable() {
     let seed = getStoredSeed();
+    let freshlyGenerated = false; // Variable to track if seed was just generated
     if (!seed) {
         seed = generateUserSeedPhrase();
         storeSeed(seed);
+        freshlyGenerated = true; // Mark that it's a new seed
     }
-    // If a new seed was generated, open the management dialog to show it with a warning.
-    if (isNewSeed) {
+    // If it's a new seed, open the dialog to show it as "IMPORTANT: Your Recovery Seed Phrase!"
+    // The openSeedManagementDialog function itself will handle passing the seed to the display.
+    if (freshlyGenerated) {
         openSeedManagementDialog(seed); // Pass the newly generated seed
     }
     return seed;
