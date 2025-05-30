@@ -172,9 +172,14 @@ document.addEventListener('DOMContentLoaded', function() {
             editDescButton.title = "Edit description";
             if (!seedPhrase) editDescButton.disabled = true;
             editDescButton.onclick = function() {
-                editShortCodeInput.value = urlEntry.short_code;
-                const currentDecryptedDesc = decryptText(urlEntry.encrypted_description, seedPhrase);
-                editDescriptionTextarea.value = currentDecryptedDesc || "";
+                editShortCodeInput.value = urlEntry.short_code; 
+
+                if (urlEntry.encrypted_description && seedPhrase) {
+                    const currentDecryptedDesc = decryptText(urlEntry.encrypted_description, seedPhrase);
+                    editDescriptionTextarea.value = currentDecryptedDesc || ""; 
+                } else {
+                    editDescriptionTextarea.value = ""; // Start with empty textarea if no description or no seed
+                }
                 editModal.style.display = 'flex';
             };
             descriptionCell.appendChild(editDescButton);
@@ -249,18 +254,24 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (saveDescriptionBtn) {
         saveDescriptionBtn.onclick = function() {
-            const shortCode = editShortCodeInput.value;
-            const plainTextDescription = editDescriptionTextarea.value;
-            
-            if (!seedPhrase) {
-                alert("Seed phrase not found. Cannot save description.");
-                return;
-            }
+            const shortCode = editShortCodeInput.value; // Ensure editShortCodeInput is defined in this scope
+            const plainTextDescription = editDescriptionTextarea.value.trim(); // trim() is good practice
+
             if (!shortCode) {
-                 alert("Error: Short code missing for description update.");
+                alert("Error: Could not determine the link's short code. Cannot save description.");
+                // Optionally update seedActionStatus as well
+                const statusEl = document.getElementById('seedActionStatus');
+                if (statusEl) statusEl.textContent = 'Error: Short code missing for update.';
                 return;
             }
 
+            if (!seedPhrase) {
+                alert("Seed phrase not found. Cannot save description.");
+                const statusEl = document.getElementById('seedActionStatus');
+                if (statusEl) statusEl.textContent = 'Error: Seed phrase missing.';
+                return;
+            }
+            
             const encryptedDesc = encryptText(plainTextDescription, seedPhrase);
             if (encryptedDesc === null && plainTextDescription !== "") { // Check if encryption failed for non-empty string
                 alert("Encryption failed. Cannot save description.");
