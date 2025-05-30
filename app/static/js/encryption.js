@@ -27,6 +27,8 @@ function generateUserSeedPhrase(numWords = 6) {
 }
 
 function deriveKeyFromSeed(seedPhrase) {
+    console.log('deriveKeyFromSeed: Called with seedPhrase (first 10 chars):', seedPhrase ? seedPhrase.substring(0, 10) + '...' : 'null/undefined');
+    console.log('deriveKeyFromSeed: CryptoJS available?', typeof CryptoJS !== 'undefined');
     if (typeof CryptoJS === 'undefined') {
         console.error("CryptoJS library is not loaded. Cannot derive key.");
         return null;
@@ -43,10 +45,13 @@ function deriveKeyFromSeed(seedPhrase) {
         iterations: PBKDF2_ITERATIONS,
         hasher: CryptoJS.algo.SHA256 // Explicitly specify SHA256 as the hasher algorithm
     });
+    console.log('deriveKeyFromSeed: Derived key (first 10 chars of hex):', key ? key.toString(CryptoJS.enc.Hex).substring(0, 10) + '...' : 'null/undefined');
     return key; // This is a WordArray
 }
 
 function encryptText(plainText, seedPhrase) {
+    console.log('encryptText: Called with plainText (first 10 chars):', plainText ? plainText.substring(0, 10) + '...' : 'null/undefined', 'and seedPhrase (first 10 chars):', seedPhrase ? seedPhrase.substring(0, 10) + '...' : 'null/undefined');
+    console.log('encryptText: CryptoJS available?', typeof CryptoJS !== 'undefined');
     if (typeof CryptoJS === 'undefined') {
         console.error("CryptoJS library is not loaded. Cannot encrypt.");
         return null;
@@ -57,6 +62,7 @@ function encryptText(plainText, seedPhrase) {
     }
 
     const derivedKey = deriveKeyFromSeed(seedPhrase);
+    console.log('encryptText: Derived key for encryption (first 10 chars of hex):', derivedKey ? derivedKey.toString(CryptoJS.enc.Hex).substring(0, 10) + '...' : 'null/undefined');
     if (!derivedKey) return null;
 
     try {
@@ -64,9 +70,10 @@ function encryptText(plainText, seedPhrase) {
             mode: CryptoJS.mode.CBC, 
             padding: CryptoJS.pad.Pkcs7
         });
+        console.log('encryptText: Encryption successful. Ciphertext (first 10 chars):', encrypted ? encrypted.toString().substring(0, 10) + '...' : 'null/undefined');
         return encrypted.toString(); 
     } catch (e) {
-        console.error("Encryption failed:", e);
+        console.error("Encryption failed IN CATCH BLOCK:", e, e.stack);
         return null;
     }
 }

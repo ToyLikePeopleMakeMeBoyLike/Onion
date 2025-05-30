@@ -72,6 +72,7 @@ mQENBFqN9zABCAC/1Z+q9P5Z2s2b7O6E3K1w5mY6W7F3Y4y4g6g3k7j6g3s2v7c9
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('Index.html JS: DOMContentLoaded. CryptoJS available?', typeof CryptoJS !== 'undefined');
     const shortenForm = document.getElementById('shortenUrlForm');
     const originalUrlPlaintext = document.getElementById('original_url_plaintext');
     const originalUrlEncryptedInput = document.getElementById('original_url_encrypted');
@@ -96,6 +97,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (shortenForm) {
         shortenForm.addEventListener('submit', function(event) {
+            console.log('Index.html JS: Shorten form submitted.');
             const urlValue = originalUrlPlaintext.value.trim();
             if (!urlValue.startsWith('http://') && !urlValue.startsWith('https://')) {
                 // Basic client-side validation, though server won't see plaintext.
@@ -106,6 +108,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             userSeed = ensureSeedIsAvailable(); // from encryption.js
+            console.log('Index.html JS: Seed after ensureSeedIsAvailable (first 10 chars):', userSeed ? userSeed.substring(0, 10) + '...' : 'null/undefined');
 
             if (isFirstTimeUse && userSeed) {
                 displaySeedWarning(userSeed, 'seedPhraseDialog'); // from encryption.js
@@ -113,7 +116,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 isFirstTimeUse = false; 
             }
 
+            console.log('Index.html JS: Attempting to encrypt urlValue (first 10 chars):', urlValue ? urlValue.substring(0, 10) + '...' : 'null/undefined');
             const encryptedUrl = encryptText(urlValue, userSeed); // from encryption.js
+            console.log('Index.html JS: Encrypted URL from encryptText (first 10 chars):', encryptedUrl ? encryptedUrl.substring(0, 10) + '...' : 'null/undefined');
             if (!encryptedUrl) {
                 alert("Encryption failed. Could not shorten URL. Ensure your seed phrase is correct or available, and that crypto libraries are loaded.");
                 event.preventDefault(); 
