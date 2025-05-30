@@ -50,6 +50,7 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    alert('DEBUG: history.html script is running - V2');
     let seedPhrase = getStoredSeed(); // Use 'let' to allow reassignment
     const historyTableBody = document.getElementById('historyTableBody');
     const noSeedMessageDiv = document.getElementById('noSeedHistoryMessage');
@@ -76,13 +77,13 @@ document.addEventListener('DOMContentLoaded', function() {
         // This function will now use the 'seedPhrase' variable from this closure,
         // which will be updated by the event listener.
         if (!historyTableBody) return;
-        historyTableBody.innerHTML = ''; 
+        historyTableBody.innerHTML = '';
 
         if (!seedPhrase && urlsData.length > 0) { // Check the updated seedPhrase
             if (noSeedMessageDiv) {
                 noSeedMessageDiv.style.display = 'block';
                 noSeedMessageDiv.innerHTML = 'Seed phrase not found in this browser. '; // Use innerHTML to add button
-                
+
                 const enterSeedButton = document.createElement('button');
                 enterSeedButton.textContent = 'Enter Seed Phrase';
                 enterSeedButton.className = 'ml-2 underline text-blue-400 hover:text-blue-300';
@@ -108,7 +109,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (indexB === -1) indexB = Infinity;
             return indexA - indexB;
         });
-        
+
         // Ensure currentLinkOrder is up-to-date (add new items, remove old)
         const currentShortCodes = urlsData.map(u => u.short_code);
         currentLinkOrder = sortedUrls.map(u => u.short_code); // Reflect current sort
@@ -165,18 +166,20 @@ document.addEventListener('DOMContentLoaded', function() {
                 descriptionDisplay.textContent = "(empty)";
             }
             descriptionCell.appendChild(descriptionDisplay);
-            
+
+            console.log('renderHistoryTable (DEBUG V2): Processing entry - short_code:', urlEntry.short_code, 'Full entry data:', JSON.stringify(urlEntry));
             const editDescButton = document.createElement('button');
             editDescButton.innerHTML = "&#9998;"; // Pencil icon
             editDescButton.className = "ml-2 text-xs text-blue-400 hover:text-blue-300";
             editDescButton.title = "Edit description";
             if (!seedPhrase) editDescButton.disabled = true;
             editDescButton.onclick = function() {
-                editShortCodeInput.value = urlEntry.short_code; 
+                editShortCodeInput.value = urlEntry.short_code;
+                console.log('editDescButton.onclick (DEBUG V2): Set editShortCodeInput.value to:', editShortCodeInput.value, 'for urlEntry.short_code:', urlEntry.short_code);
 
                 if (urlEntry.encrypted_description && seedPhrase) {
                     const currentDecryptedDesc = decryptText(urlEntry.encrypted_description, seedPhrase);
-                    editDescriptionTextarea.value = currentDecryptedDesc || ""; 
+                    editDescriptionTextarea.value = currentDecryptedDesc || "";
                 } else {
                     editDescriptionTextarea.value = ""; // Start with empty textarea if no description or no seed
                 }
@@ -215,7 +218,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const clicksCell = row.insertCell();
             clicksCell.className = "py-3 px-2 sm:px-4";
             clicksCell.textContent = urlEntry.clicks;
-            
+
             // 6. Order Controls
             const orderCell = row.insertCell();
             orderCell.className = "py-3 px-2 sm:px-4 whitespace-nowrap";
@@ -236,7 +239,7 @@ document.addEventListener('DOMContentLoaded', function() {
             orderCell.appendChild(downButton);
         });
     }
-    
+
     function moveLink(shortCode, direction) {
         let currentOrder = getStoredLinkOrder();
         const currentIndex = currentOrder.indexOf(shortCode);
@@ -247,15 +250,36 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Swap elements
         [currentOrder[currentIndex], currentOrder[newIndex]] = [currentOrder[newIndex], currentOrder[currentIndex]];
-        
+
         storeLinkOrder(currentOrder);
         renderHistoryTable(); // Re-render the table with new order
     }
 
     if (saveDescriptionBtn) {
         saveDescriptionBtn.onclick = function() {
-            const shortCode = editShortCodeInput.value; // Ensure editShortCodeInput is defined in this scope
-            const plainTextDescription = editDescriptionTextarea.value.trim(); // trim() is good practice
+            console.log('saveDescriptionBtn.onclick (DEBUG V2): Triggered.');
+            // const shortCodeInputElement = document.getElementById('editShortCode'); // This was for re-fetching, using the already defined editShortCodeInput is fine.
+            console.log('saveDescriptionBtn.onclick (DEBUG V2): editShortCodeInput DOM element:', editShortCodeInput); // Use the variable defined at the top of DOMContentLoaded
+            if (editShortCodeInput) {
+                console.log('saveDescriptionBtn.onclick (DEBUG V2): Value of editShortCodeInput.value at save:', editShortCodeInput.value);
+            } else {
+                console.log('saveDescriptionBtn.onclick (DEBUG V2): editShortCodeInput DOM element (editShortCodeInput variable) is null or undefined!');
+            }
+            const shortCode = editShortCodeInput.value;
+
+            // Ensure this is inside saveDescriptionBtn.onclick, before encryptText is called
+            const descriptionTextareaElement = document.getElementById('editDescriptionTextarea');
+            console.log('saveDescriptionBtn.onclick: editDescriptionTextarea DOM element:', descriptionTextareaElement);
+            let plainTextDescription = ""; // Default to empty string
+
+            if (descriptionTextareaElement) {
+                plainTextDescription = descriptionTextareaElement.value.trim();
+                console.log('saveDescriptionBtn.onclick: plainTextDescription from textarea (after trim):', plainTextDescription);
+            } else {
+                console.error('saveDescriptionBtn.onclick: editDescriptionTextarea DOM element NOT FOUND!');
+                alert("Critical UI Error: Description input field not found. Cannot save description.");
+                return; // Stop execution if the textarea element is missing
+            }
 
             if (!shortCode) {
                 alert("Error: Could not determine the link's short code. Cannot save description.");
@@ -271,10 +295,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (statusEl) statusEl.textContent = 'Error: Seed phrase missing.';
                 return;
             }
-            
+
+            console.log('saveDescriptionBtn.onclick: About to encrypt description:', plainTextDescription, 'with seed (first 10):', seedPhrase ? seedPhrase.substring(0,10)+'...' : 'undefined');
             const encryptedDesc = encryptText(plainTextDescription, seedPhrase);
-            if (encryptedDesc === null && plainTextDescription !== "") { // Check if encryption failed for non-empty string
-                alert("Encryption failed. Cannot save description.");
+
+            // Improved check for encryption failure
+            if (encryptedDesc === null) {
+                // If plainTextDescription was actually something, this is a more serious encryption failure.
+                // If plainTextDescription was "", encryptText("") should produce a valid (small) ciphertext, not null.
+                // So, receiving null here is unexpected if seedPhrase is valid.
+                console.error('saveDescriptionBtn.onclick: encryptText returned null. Plaintext was:', plainTextDescription, 'Seed (first 10):', seedPhrase ? seedPhrase.substring(0,10)+'...' : 'undefined');
+                alert("Encryption of description failed. This might be an issue with the seed phrase or a problem with the encryption process. Cannot save.");
                 return;
             }
 
@@ -283,7 +314,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ encrypted_description: encryptedDesc === null ? "" : encryptedDesc }) // Send empty string if null from encryption
+                body: JSON.stringify({ encrypted_description: encryptedDesc })
             })
             .then(response => response.json())
             .then(data => {
@@ -311,7 +342,7 @@ document.addEventListener('DOMContentLoaded', function() {
             editModal.style.display = 'none';
         };
     }
-    
+
     // Initial render
     if (urlsData && urlsData.length > 0) {
         renderHistoryTable();
@@ -323,7 +354,7 @@ document.addEventListener('DOMContentLoaded', function() {
     document.addEventListener('seedUpdated', function() {
         console.log('History.html JS: seedUpdated event received.');
         seedPhrase = getStoredSeed(); // Crucial: Update the seedPhrase variable
-        renderHistoryTable(); 
+        renderHistoryTable();
     });
 });
 </script>

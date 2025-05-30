@@ -36,10 +36,10 @@ function encryptText(plainText, seedPhrase) {
     try {
         const plainTextWordArray = CryptoJS.enc.Utf8.parse(plainText);
         // Use seedPhrase directly as the passphrase
-        const encrypted = CryptoJS.AES.encrypt(plainTextWordArray, seedPhrase); 
-        
+        const encrypted = CryptoJS.AES.encrypt(plainTextWordArray, seedPhrase);
+
         console.log('encryptText: Encryption successful (using seed as passphrase). Ciphertext (first 10 chars):', encrypted ? encrypted.toString().substring(0, 10) + '...' : 'null/undefined');
-        return encrypted.toString(); 
+        return encrypted.toString();
     } catch (e) {
         console.error("Encryption failed IN CATCH BLOCK (using seed as passphrase):", e, e.stack);
         return null;
@@ -131,7 +131,7 @@ You will need this phrase to access your links if you clear your browser data or
         if (currentDisplayEl) currentDisplayEl.textContent = '(No seed currently stored)';
         if (manualInputEl) manualInputEl.value = '';
         // Decide if displaySectionEl should be hidden or shown with "no seed" message
-        if (displaySectionEl) displaySectionEl.style.display = 'block'; 
+        if (displaySectionEl) displaySectionEl.style.display = 'block';
     }
 
     if (isFirstTimeGeneratedSeed) {
@@ -176,7 +176,7 @@ function saveSeedFromInput() {
     // Hide the "new seed" warning if it was visible, and reset title
     warningSectionEl.style.display = 'none';
     titleEl.textContent = 'Manage Your Seed Phrase';
-    
+
     document.dispatchEvent(new Event('seedUpdated')); // Notify other parts of the app
 }
 
