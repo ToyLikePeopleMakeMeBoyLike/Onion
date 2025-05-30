@@ -1,44 +1,302 @@
 {% extends "base.html" %}
 
-{% block title %}URL History{% endblock %}
+{% block title %}URL History Dashboard{% endblock %}
 
 {% block content %}
 <div class="w-full">
-    <h1 class="text-3xl sm:text-4xl font-bold text-green-400 mb-8 text-center">URL Shortening History</h1>
-    
+    <h1 class="text-3xl sm:text-4xl font-bold text-green-400 mb-8 text-center">URL History Dashboard</h1>
+
     {% if urls %}
         <div class="overflow-x-auto bg-gray-700 rounded-lg shadow-2xl">
             <table class="w-full table-auto">
                 <thead class="bg-gray-600">
                     <tr>
-                        <th class="text-left py-3 px-2 sm:px-4 uppercase font-semibold text-sm text-gray-300">Original URL</th>
+                        <th class="text-left py-3 px-2 sm:px-4 uppercase font-semibold text-sm text-gray-300 w-1/3">Original URL (Decrypted)</th>
+                        <th class="text-left py-3 px-2 sm:px-4 uppercase font-semibold text-sm text-gray-300 w-1/3">Description</th>
                         <th class="text-left py-3 px-2 sm:px-4 uppercase font-semibold text-sm text-gray-300">Short URL</th>
-                        <th class="text-left py-3 px-2 sm:px-4 uppercase font-semibold text-sm text-gray-300">Created At (UTC)</th>
+                        <th class="text-left py-3 px-2 sm:px-4 uppercase font-semibold text-sm text-gray-300">Created</th>
                         <th class="text-left py-3 px-2 sm:px-4 uppercase font-semibold text-sm text-gray-300">Clicks</th>
+                        <th class="text-left py-3 px-2 sm:px-4 uppercase font-semibold text-sm text-gray-300">Order</th>
                     </tr>
                 </thead>
-                <tbody class="text-gray-200">
-                    {% for url_entry in urls %}
-                    <tr class="border-b border-gray-600 hover:bg-gray-600 transition-colors duration-200">
-                        <td class="py-3 px-2 sm:px-4" style="word-break: break-all; max-width: 200px; overflow-wrap: break-word;">
-                            <a href="{{ url_entry.original_url }}" target="_blank" title="{{ url_entry.original_url }}" class="text-blue-400 hover:underline">
-                                {{ url_entry.original_url | truncate(50) }}
-                            </a>
-                        </td>
-                        <td class="py-3 px-2 sm:px-4" style="word-break: break-all;">
-                            <a href="{{ url_entry.short_url_display }}" target="_blank" class="text-blue-400 hover:underline">
-                                {{ url_entry.short_url_display }}
-                            </a>
-                        </td>
-                        <td class="py-3 px-2 sm:px-4 whitespace-nowrap">{{ url_entry.created_at.strftime('%Y-%m-%d %H:%M:%S') if url_entry.created_at else 'N/A' }}</td>
-                        <td class="py-3 px-2 sm:px-4">{{ url_entry.clicks }}</td>
-                    </tr>
-                    {% endfor %}
+                <tbody class="text-gray-200" id="historyTableBody">
+                    {# Rows will be populated by JavaScript #}
                 </tbody>
             </table>
+        </div>
+        <div id="noSeedHistoryMessage" class="text-red-400 text-center my-4" style="display:none;">
+            Cannot decrypt history: Seed phrase not found in this browser. Please set your seed or generate a new link first.
         </div>
     {% else %}
         <p class="text-center text-gray-400 mt-8 text-lg">No URLs have been shortened yet.</p>
     {% endif %}
 </div>
+
+<!-- Modal for Editing Description (optional, can also do inline editing) -->
+<div id="editDescriptionModal" class="seed-dialog-overlay" style="display:none; align-items:center; justify-content:center;">
+    <div class="seed-dialog-content w-11/12 max-w-lg">
+        <h2 class="text-xl font-bold mb-4 text-yellow-400">Edit Description</h2>
+        <input type="hidden" id="editShortCode">
+        <textarea id="editDescriptionTextarea" class="w-full p-2 rounded bg-gray-900 border border-gray-600 focus:border-green-500" rows="3" placeholder="Enter description..."></textarea>
+        <div class="mt-4">
+            <button id="saveDescriptionBtn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded mr-2">Save</button>
+            <button id="cancelEditDescriptionBtn" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded">Cancel</button>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const seedPhrase = getStoredSeed(); // From encryption.js
+    const historyTableBody = document.getElementById('historyTableBody');
+    const noSeedMessageDiv = document.getElementById('noSeedHistoryMessage');
+    const urlsData = {{ urls | tojson | safe }}; // Get URL data from Flask
+    const LINK_ORDER_STORAGE_KEY = 'onionShortenerLinkOrder';
+
+    // Modal elements
+    const editModal = document.getElementById('editDescriptionModal');
+    const editShortCodeInput = document.getElementById('editShortCode');
+    const editDescriptionTextarea = document.getElementById('editDescriptionTextarea');
+    const saveDescriptionBtn = document.getElementById('saveDescriptionBtn');
+    const cancelEditDescriptionBtn = document.getElementById('cancelEditDescriptionBtn');
+
+    function getStoredLinkOrder() {
+        const storedOrder = localStorage.getItem(LINK_ORDER_STORAGE_KEY);
+        return storedOrder ? JSON.parse(storedOrder) : [];
+    }
+
+    function storeLinkOrder(orderArray) {
+        localStorage.setItem(LINK_ORDER_STORAGE_KEY, JSON.stringify(orderArray));
+    }
+
+    function renderHistoryTable() {
+        if (!historyTableBody) return;
+        historyTableBody.innerHTML = ''; // Clear existing rows
+
+        if (!seedPhrase && urlsData.length > 0) {
+            if (noSeedMessageDiv) noSeedMessageDiv.style.display = 'block';
+            // Optionally disable edit/reorder features if no seed
+            return;
+        }
+        if (noSeedMessageDiv) noSeedMessageDiv.style.display = 'none';
+
+
+        let currentLinkOrder = getStoredLinkOrder();
+        let sortedUrls = [...urlsData];
+
+        // Sort urlsData based on currentLinkOrder. Entries not in order go to the bottom.
+        sortedUrls.sort((a, b) => {
+            let indexA = currentLinkOrder.indexOf(a.short_code);
+            let indexB = currentLinkOrder.indexOf(b.short_code);
+            if (indexA === -1) indexA = Infinity;
+            if (indexB === -1) indexB = Infinity;
+            return indexA - indexB;
+        });
+        
+        // Ensure currentLinkOrder is up-to-date (add new items, remove old)
+        const currentShortCodes = urlsData.map(u => u.short_code);
+        currentLinkOrder = sortedUrls.map(u => u.short_code); // Reflect current sort
+        storeLinkOrder(currentLinkOrder);
+
+
+        sortedUrls.forEach((urlEntry, index) => {
+            const row = historyTableBody.insertRow();
+            row.className = "history-entry border-b border-gray-600 hover:bg-gray-600 transition-colors duration-200";
+            row.dataset.shortCode = urlEntry.short_code;
+
+            // 1. Original URL (Decrypted)
+            const originalUrlCell = row.insertCell();
+            originalUrlCell.className = "py-3 px-2 sm:px-4 original-url-cell";
+            originalUrlCell.style = "word-break: break-all; max-width: 200px; overflow-wrap: break-word;";
+            const decryptedUrlDisplay = document.createElement('span');
+            decryptedUrlDisplay.className = "decrypted-url-display text-gray-500";
+            decryptedUrlDisplay.textContent = "Decrypting...";
+            if (seedPhrase && urlEntry.encrypted_original_url) {
+                const decryptedUrl = decryptText(urlEntry.encrypted_original_url, seedPhrase);
+                if (decryptedUrl) {
+                    const link = document.createElement('a');
+                    link.href = decryptedUrl;
+                    link.target = "_blank";
+                    link.title = decryptedUrl;
+                    link.className = "text-blue-400 hover:underline";
+                    link.textContent = decryptedUrl.length > 50 ? decryptedUrl.substring(0, 50) + "..." : decryptedUrl;
+                    decryptedUrlDisplay.innerHTML = '';
+                    decryptedUrlDisplay.appendChild(link);
+                } else {
+                    decryptedUrlDisplay.textContent = "Failed to decrypt URL.";
+                    decryptedUrlDisplay.classList.add('text-red-400');
+                }
+            } else if (!seedPhrase) {
+                decryptedUrlDisplay.textContent = "Seed needed.";
+                decryptedUrlDisplay.classList.add('text-red-400');
+            } else {
+                 decryptedUrlDisplay.textContent = "N/A (No URL)";
+            }
+            originalUrlCell.appendChild(decryptedUrlDisplay);
+
+            // 2. Description (Decrypted & Editable)
+            const descriptionCell = row.insertCell();
+            descriptionCell.className = "py-3 px-2 sm:px-4 description-cell";
+            descriptionCell.style = "word-break: break-all; max-width: 200px; overflow-wrap: break-word;";
+            const descriptionDisplay = document.createElement('span');
+            descriptionDisplay.className = "decrypted-description-display text-gray-400";
+            if (seedPhrase && urlEntry.encrypted_description) {
+                const decryptedDesc = decryptText(urlEntry.encrypted_description, seedPhrase);
+                descriptionDisplay.textContent = decryptedDesc || "(empty)";
+            } else if (!seedPhrase) {
+                descriptionDisplay.textContent = "Seed needed to view/edit.";
+            } else {
+                descriptionDisplay.textContent = "(empty)";
+            }
+            descriptionCell.appendChild(descriptionDisplay);
+            
+            const editDescButton = document.createElement('button');
+            editDescButton.innerHTML = "&#9998;"; // Pencil icon
+            editDescButton.className = "ml-2 text-xs text-blue-400 hover:text-blue-300";
+            editDescButton.title = "Edit description";
+            if (!seedPhrase) editDescButton.disabled = true;
+            editDescButton.onclick = function() {
+                editShortCodeInput.value = urlEntry.short_code;
+                const currentDecryptedDesc = decryptText(urlEntry.encrypted_description, seedPhrase);
+                editDescriptionTextarea.value = currentDecryptedDesc || "";
+                editModal.style.display = 'flex';
+            };
+            descriptionCell.appendChild(editDescButton);
+
+
+            // 3. Short URL
+            const shortUrlCell = row.insertCell();
+            shortUrlCell.className = "py-3 px-2 sm:px-4";
+            shortUrlCell.style = "word-break: break-all;";
+            const shortUrlLink = document.createElement('a');
+            shortUrlLink.href = urlEntry.short_url_display;
+            shortUrlLink.target = "_blank";
+            shortUrlLink.className = "text-blue-400 hover:underline";
+            shortUrlLink.textContent = urlEntry.short_url_display.split('/').pop(); // Show only the code part
+            shortUrlCell.appendChild(shortUrlLink);
+
+            // 4. Created At
+            const createdAtCell = row.insertCell();
+            createdAtCell.className = "py-3 px-2 sm:px-4 whitespace-nowrap";
+            let createdAtText = 'N/A';
+            if (urlEntry.created_at) {
+                // Assuming urlEntry.created_at is a string like "YYYY-MM-DD HH:MM:SS"
+                // For more robust date parsing, a library might be better
+                try {
+                    const dateObj = new Date(urlEntry.created_at + " UTC"); // Interpret as UTC
+                     createdAtText = dateObj.toLocaleDateString() + " " + dateObj.toLocaleTimeString();
+                } catch(e) { console.error("Error parsing date: ", urlEntry.created_at, e); }
+            }
+            createdAtCell.textContent = createdAtText;
+
+
+            // 5. Clicks
+            const clicksCell = row.insertCell();
+            clicksCell.className = "py-3 px-2 sm:px-4";
+            clicksCell.textContent = urlEntry.clicks;
+            
+            // 6. Order Controls
+            const orderCell = row.insertCell();
+            orderCell.className = "py-3 px-2 sm:px-4 whitespace-nowrap";
+            const upButton = document.createElement('button');
+            upButton.innerHTML = "&uarr;"; // Up arrow
+            upButton.className = "px-1 text-blue-400 hover:text-blue-300 disabled:opacity-50";
+            upButton.disabled = index === 0;
+            if (!seedPhrase) upButton.disabled = true;
+            upButton.onclick = function() { moveLink(urlEntry.short_code, -1); };
+            orderCell.appendChild(upButton);
+
+            const downButton = document.createElement('button');
+            downButton.innerHTML = "&darr;"; // Down arrow
+            downButton.className = "px-1 text-blue-400 hover:text-blue-300 disabled:opacity-50";
+            downButton.disabled = index === sortedUrls.length - 1;
+            if (!seedPhrase) downButton.disabled = true;
+            downButton.onclick = function() { moveLink(urlEntry.short_code, 1); };
+            orderCell.appendChild(downButton);
+        });
+    }
+    
+    function moveLink(shortCode, direction) {
+        let currentOrder = getStoredLinkOrder();
+        const currentIndex = currentOrder.indexOf(shortCode);
+        if (currentIndex === -1) return; // Should not happen
+
+        const newIndex = currentIndex + direction;
+        if (newIndex < 0 || newIndex >= currentOrder.length) return; // Out of bounds
+
+        // Swap elements
+        [currentOrder[currentIndex], currentOrder[newIndex]] = [currentOrder[newIndex], currentOrder[currentIndex]];
+        
+        storeLinkOrder(currentOrder);
+        renderHistoryTable(); // Re-render the table with new order
+    }
+
+    if (saveDescriptionBtn) {
+        saveDescriptionBtn.onclick = function() {
+            const shortCode = editShortCodeInput.value;
+            const plainTextDescription = editDescriptionTextarea.value;
+            
+            if (!seedPhrase) {
+                alert("Seed phrase not found. Cannot save description.");
+                return;
+            }
+            if (!shortCode) {
+                 alert("Error: Short code missing for description update.");
+                return;
+            }
+
+            const encryptedDesc = encryptText(plainTextDescription, seedPhrase);
+            if (encryptedDesc === null && plainTextDescription !== "") { // Check if encryption failed for non-empty string
+                alert("Encryption failed. Cannot save description.");
+                return;
+            }
+
+            fetch(`/update_description/${shortCode}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ encrypted_description: encryptedDesc === null ? "" : encryptedDesc }) // Send empty string if null from encryption
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Update local urlsData to reflect change for re-render
+                    const urlEntry = urlsData.find(u => u.short_code === shortCode);
+                    if (urlEntry) {
+                        urlEntry.encrypted_description = encryptedDesc === null ? "" : encryptedDesc;
+                    }
+                    renderHistoryTable();
+                    editModal.style.display = 'none';
+                } else {
+                    alert("Failed to save description: " + (data.error || "Unknown server error"));
+                }
+            })
+            .catch(error => {
+                console.error("Error saving description:", error);
+                alert("Error saving description. Check console.");
+            });
+        };
+    }
+
+    if (cancelEditDescriptionBtn) {
+        cancelEditDescriptionBtn.onclick = function() {
+            editModal.style.display = 'none';
+        };
+    }
+    
+    // Initial render
+    if (urlsData && urlsData.length > 0) {
+        renderHistoryTable();
+    } else if (historyTableBody) { // urlsData is null or empty
+        historyTableBody.innerHTML = '<tr><td colspan="6" class="text-center text-gray-400 py-4">No URLs have been shortened yet.</td></tr>';
+        if (noSeedMessageDiv) noSeedMessageDiv.style.display = 'none'; // Hide seed message if no URLs anyway
+    }
+
+
+});
+</script>
 {% endblock %}

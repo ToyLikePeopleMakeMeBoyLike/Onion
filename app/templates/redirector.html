@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}Redirecting...{% endblock %}
+
+{% block content %}
+<div class="text-center">
+    <h1 class="text-2xl font-bold text-green-400 mb-4">Preparing your redirect...</h1>
+    <p class="text-gray-300 mb-2">You are being redirected. If nothing happens, please ensure JavaScript is enabled and you have your seed phrase correctly set up in this browser.</p>
+    <p id="redirectStatus" class="text-yellow-400"></p>
+
+    <div id="encryptedData" data-url="{{ encrypted_url | e }}" style="display:none;"></div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const statusP = document.getElementById('redirectStatus');
+    const encryptedDataElement = document.getElementById('encryptedData');
+
+    if (!encryptedDataElement) {
+        statusP.textContent = "Error: Encrypted data not found on page.";
+        return;
+    }
+
+    const encryptedUrl = encryptedDataElement.dataset.url;
+    if (!encryptedUrl) {
+        statusP.textContent = "Error: Encrypted URL is missing.";
+        return;
+    }
+
+    const seedPhrase = getStoredSeed(); // From encryption.js
+    if (!seedPhrase) {
+        statusP.textContent = "Error: Seed phrase not found. Cannot decrypt and redirect. Please ensure you have generated a link on this browser or manually set your seed.";
+        // You might want to add a way for users to input their seed here if not found.
+        return;
+    }
+
+    statusP.textContent = "Decrypting destination...";
+    const decryptedUrl = decryptText(encryptedUrl, seedPhrase); // From encryption.js
+
+    if (decryptedUrl) {
+        statusP.textContent = "Redirecting to: " + decryptedUrl.substring(0, 50) + "..."; // Show a snippet for user feedback
+        // Perform the redirect
+        window.location.replace(decryptedUrl);
+    } else {
+        statusP.textContent = "Error: Failed to decrypt the URL. The link may be corrupted, or your stored seed phrase might be incorrect for this link.";
+        // Consider adding a link back to the homepage or history.
+        const homeLink = document.createElement('a');
+        homeLink.href = "{{ url_for('main.index') }}";
+        homeLink.textContent = "Go to Homepage";
+        homeLink.className = "mt-4 inline-block bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded";
+        statusP.parentElement.appendChild(homeLink);
+    }
+});
+</script>
+{% endblock %}
