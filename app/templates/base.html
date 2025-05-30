@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Onion Link Shortener{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+        /* Custom styles can go here or in a static CSS file */
+       .flash-error { background-color: #f8d7da; color: #721c24; border-color: #f5c6cb; padding: 0.75rem 1.25rem; margin-bottom: 1rem; border: 1px solid transparent; border-radius: 0.25rem; }
+       .flash-success { background-color: #d4edda; color: #155724; border-color: #c3e6cb; padding: 0.75rem 1.25rem; margin-bottom: 1rem; border: 1px solid transparent; border-radius: 0.25rem; }
+       .flash-info { background-color: #d1ecf1; color: #0c5460; border-color: #bee5eb; padding: 0.75rem 1.25rem; margin-bottom: 1rem; border: 1px solid transparent; border-radius: 0.25rem; }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 font-sans leading-normal tracking-normal">
+    <div class="container mx-auto p-4 min-h-screen flex flex-col">
+        <header class="mb-8">
+            <nav class="p-4 sm:p-6 bg-gray-800 shadow-lg rounded-lg flex flex-col sm:flex-row justify-between items-center">
+                <a href="{{ url_for('main.index') }}" class="text-2xl sm:text-3xl font-bold text-green-400 hover:text-green-300 transition-colors duration-300">🧅 Onion Shortener</a>
+                <div class="mt-4 sm:mt-0">
+                    <a href="{{ url_for('main.index') }}" class="px-3 py-2 rounded text-gray-300 hover:bg-gray-700 hover:text-white transition-colors duration-300">Home</a>
+                    <a href="{{ url_for('main.history') }}" class="px-3 py-2 rounded text-gray-300 hover:bg-gray-700 hover:text-white transition-colors duration-300">History</a>
+                </div>
+            </nav>
+        </header>
+
+        <main class="flex-grow bg-gray-800 p-4 sm:p-6 rounded-lg shadow-xl">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="flash-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+            {% block content %}{% endblock %}
+        </main>
+
+        <footer class="text-center mt-8 text-gray-500 text-sm">
+            <p>&copy; 2025 Onion Link Shortener. For educational and research purposes.</p>
+        </footer>
+    </div>
+</body>
+</html>

@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}URL History{% endblock %}
+
+{% block content %}
+<div class="w-full">
+    <h1 class="text-3xl sm:text-4xl font-bold text-green-400 mb-8 text-center">URL Shortening History</h1>
+    
+    {% if urls %}
+        <div class="overflow-x-auto bg-gray-700 rounded-lg shadow-2xl">
+            <table class="w-full table-auto">
+                <thead class="bg-gray-600">
+                    <tr>
+                        <th class="text-left py-3 px-2 sm:px-4 uppercase font-semibold text-sm text-gray-300">Original URL</th>
+                        <th class="text-left py-3 px-2 sm:px-4 uppercase font-semibold text-sm text-gray-300">Short URL</th>
+                        <th class="text-left py-3 px-2 sm:px-4 uppercase font-semibold text-sm text-gray-300">Created At (UTC)</th>
+                        <th class="text-left py-3 px-2 sm:px-4 uppercase font-semibold text-sm text-gray-300">Clicks</th>
+                    </tr>
+                </thead>
+                <tbody class="text-gray-200">
+                    {% for url_entry in urls %}
+                    <tr class="border-b border-gray-600 hover:bg-gray-600 transition-colors duration-200">
+                        <td class="py-3 px-2 sm:px-4" style="word-break: break-all; max-width: 200px; overflow-wrap: break-word;">
+                            <a href="{{ url_entry.original_url }}" target="_blank" title="{{ url_entry.original_url }}" class="text-blue-400 hover:underline">
+                                {{ url_entry.original_url | truncate(50) }}
+                            </a>
+                        </td>
+                        <td class="py-3 px-2 sm:px-4" style="word-break: break-all;">
+                            <a href="{{ url_entry.short_url_display }}" target="_blank" class="text-blue-400 hover:underline">
+                                {{ url_entry.short_url_display }}
+                            </a>
+                        </td>
+                        <td class="py-3 px-2 sm:px-4 whitespace-nowrap">{{ url_entry.created_at.strftime('%Y-%m-%d %H:%M:%S') if url_entry.created_at else 'N/A' }}</td>
+                        <td class="py-3 px-2 sm:px-4">{{ url_entry.clicks }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p class="text-center text-gray-400 mt-8 text-lg">No URLs have been shortened yet.</p>
+    {% endif %}
+</div>
+{% endblock %}

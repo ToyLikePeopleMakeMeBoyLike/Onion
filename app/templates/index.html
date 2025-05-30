@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}Shorten URL{% endblock %}
+
+{% block content %}
+<div class="text-center">
+    <h1 class="text-3xl sm:text-4xl font-bold text-green-400 mb-8">Shorten Your.onion Link</h1>
+    
+    <form action="{{ url_for('main.index') }}" method="POST" class="w-full max-w-xl mx-auto bg-gray-700 p-6 sm:p-8 rounded-lg shadow-2xl">
+        <div class="mb-6">
+            <label for="original_url" class="block text-gray-300 text-sm font-bold mb-2 text-left">Original Long URL (must start with http:// or https://):</label>
+            <input type="url" name="original_url" id="original_url" 
+                   placeholder="e.g., http://yourverylongonionaddressxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.onion/some/path" 
+                   required 
+                   class="shadow appearance-none border border-gray-600 rounded w-full py-3 px-4 bg-gray-800 text-gray-100 leading-tight focus:outline-none focus:shadow-outline focus:border-green-500">
+        </div>
+        <div class="mb-6">
+            <label for="custom_alias" class="block text-gray-300 text-sm font-bold mb-2 text-left">Custom Alias (Optional, 3-30 alphanumeric chars):</label>
+            <input type="text" name="custom_alias" id="custom_alias" 
+                   placeholder="e.g., mylink"
+                   pattern="[a-zA-Z0-9]{3,30}"
+                   title="3-30 alphanumeric characters."
+                   class="shadow appearance-none border border-gray-600 rounded w-full py-3 px-4 bg-gray-800 text-gray-100 leading-tight focus:outline-none focus:shadow-outline focus:border-green-500">
+        </div>
+        <div class="flex items-center justify-center">
+            <button type="submit" 
+                    class="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded focus:outline-none focus:shadow-outline transition-colors duration-300">
+                Shorten
+            </button>
+        </div>
+    </form>
+
+    {% if short_url_display %}
+        <div class="mt-8 p-6 bg-gray-700 border border-green-500 rounded-lg shadow-xl">
+            <h2 class="text-xl sm:text-2xl font-semibold text-green-400 mb-3">Your Shortened URL:</h2>
+            <p class="text-lg sm:text-xl text-gray-100" style="word-break: break-all;">
+                <a href="{{ short_url_display }}" target="_blank" class="text-blue-400 hover:text-blue-300 underline">{{ short_url_display }}</a>
+            </p>
+            <p class="mt-3 text-sm text-gray-400">Share this link. It redirects to your original URL.</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

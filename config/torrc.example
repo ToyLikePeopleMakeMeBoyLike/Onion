@@ -1,0 +1,72 @@
+# Example torrc configuration for the Onion Link Shortener hidden service
+
+## --- Basic Hidden Service Configuration ---
+# Replace '/var/lib/tor/onion_shortener_service/' with the actual path
+# where Tor can store keys and hostname for this service.
+# Ensure this directory is owned and writable by the user Tor runs as (e.g., debian-tor).
+HiddenServiceDir /var/lib/tor/onion_shortener_service/
+
+## Forward incoming connections on virtual port 80 (HTTP) for the.onion address
+## to a local web server (e.g., Gunicorn running the Flask app).
+
+# Option 1: Forward to a Unix socket (RECOMMENDED for security if Gunicorn/Nginx supports it)
+# Your web server (Gunicorn/Nginx) must be configured to listen on this socket.
+# Example: HiddenServicePort 80 unix:/var/run/shortener_app.sock
+
+# Option 2: Forward to a local TCP port (e.g., Flask dev server or Gunicorn on TCP)
+# Ensure your application server (Gunicorn) is configured to listen on 127.0.0.1:5000
+# (or the port mapped from your Docker container to localhost).
+# DO NOT bind your application server to 0.0.0.0 if it's not containerized,
+# as that would expose it to the local network.
+HiddenServicePort 80 127.0.0.1:5000
+
+## --- Security & Operational Considerations ---
+# Use v3 onion services (default in recent Tor versions). They are more secure.
+# HiddenServiceVersion 3 # Usually not needed as it's default
+
+# Client Authorization (if you want to restrict access - advanced)
+# This makes your service private, requiring clients to have a key.
+# HiddenServiceAuthorizeClient stealth clientname1 clientname2
+
+# Logging (adjust verbosity and path as needed, be mindful of privacy)
+# Log notice file /var/log/tor/notices.log
+# SafeLogging 1 # Strips potentially sensitive info like IP addresses from logs
+
+# Control Port (if needed for tools like OnionBalance or other management)
+# ControlPort 9051
+# CookieAuthentication 1 # Recommended for ControlPort security
+# If using OnionBalance, it might require a specific ControlPort setup.
+# Example for OnionBalance: ControlPort 127.0.0.1:6666
+
+# Data Directory (Tor's main data directory)
+# DataDirectory /var/lib/tor # Default on many systems
+
+# User Tor runs as (ensure this user owns HiddenServiceDir and DataDirectory)
+# User debian-tor # Or whatever user Tor runs as on your system (e.g., _tor on macOS)
+
+## --- Hardening: Prevent IP Leaks & Information Disclosure ---
+# 1. Firewall: If this server is dedicated to the.onion service, configure
+#    your system firewall (e.g., nftables, ufw) to DROP all outbound non-Tor traffic
+#    and only allow inbound traffic necessary for Tor and SSH (via its own HS).
+#    This is a critical step to prevent accidental IP leaks. [5]
+# 2. Web Application:
+#    - Ensure your Flask application (and Gunicorn/Nginx) does not log client IPs
+#      (Tor will pass its internal IPs or 127.0.0.1).
+#    - Disable server signature tokens in Gunicorn/Nginx.
+#    - Sanitize all user inputs rigorously.
+#    - Return generic error messages to avoid leaking internal details.
+# 3. SSH Access:
+#    - Access your server for administration ONLY via a SEPARATE Tor hidden service for SSH. [5]
+#      This prevents correlation of your main service's.onion with admin activities.
+#      Example for SSH HS:
+#      # HiddenServiceDir /var/lib/tor/ssh_hidden_service/
+#      # HiddenServicePort 22 127.0.0.1:22
+# 4. System Updates: Keep your OS, Tor, Python, Flask, and all dependencies updated.
+#    Proxy `apt` or `yum` updates through Tor if possible. [5]
+
+## --- OnionBalance (for Scalability & Resilience - Advanced) ---
+# If you plan to use OnionBalance, each backend instance's Tor configuration
+# will need the `HiddenServiceOnionbalanceInstance 1` directive within its
+# HiddenService block, and an `ob_config` file in its HiddenServiceDir
+# pointing to the frontend OnionBalance master address. [10]
+# The OnionBalance frontend server itself will have a different configuration.
