@@ -5,14 +5,15 @@
 {% block content %}
 <div class="text-center">
     <h1 class="text-3xl sm:text-4xl font-bold text-green-400 mb-8">Shorten Your.onion Link</h1>
-    
-    <form action="{{ url_for('main.index') }}" method="POST" class="w-full max-w-xl mx-auto bg-gray-700 p-6 sm:p-8 rounded-lg shadow-2xl">
+
+    <form id="shortenUrlForm" action="{{ url_for('main.index') }}" method="POST" class="w-full max-w-xl mx-auto bg-gray-700 p-6 sm:p-8 rounded-lg shadow-2xl">
         <div class="mb-6">
-            <label for="original_url" class="block text-gray-300 text-sm font-bold mb-2 text-left">Original Long URL (must start with http:// or https://):</label>
-            <input type="url" name="original_url" id="original_url" 
+            <label for="original_url_plaintext" class="block text-gray-300 text-sm font-bold mb-2 text-left">Original Long URL (must start with http:// or https://):</label>
+            <input type="url" name="original_url_plaintext" id="original_url_plaintext" 
                    placeholder="e.g., http://yourverylongonionaddressxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.onion/some/path" 
                    required 
                    class="shadow appearance-none border border-gray-600 rounded w-full py-3 px-4 bg-gray-800 text-gray-100 leading-tight focus:outline-none focus:shadow-outline focus:border-green-500">
+            <input type="hidden" name="original_url" id="original_url_encrypted">
         </div>
         <div class="mb-6">
             <label for="custom_alias" class="block text-gray-300 text-sm font-bold mb-2 text-left">Custom Alias (Optional, 3-30 alphanumeric chars):</label>
@@ -31,13 +32,116 @@
     </form>
 
     {% if short_url_display %}
-        <div class="mt-8 p-6 bg-gray-700 border border-green-500 rounded-lg shadow-xl">
+        <div id="shortenedUrlResult" class="mt-8 p-6 bg-gray-700 border border-green-500 rounded-lg shadow-xl">
             <h2 class="text-xl sm:text-2xl font-semibold text-green-400 mb-3">Your Shortened URL:</h2>
             <p class="text-lg sm:text-xl text-gray-100" style="word-break: break-all;">
                 <a href="{{ short_url_display }}" target="_blank" class="text-blue-400 hover:text-blue-300 underline">{{ short_url_display }}</a>
             </p>
-            <p class="mt-3 text-sm text-gray-400">Share this link. It redirects to your original URL.</p>
+            <p class="mt-3 text-sm text-gray-400">Share this link. It redirects to your (encrypted) original URL.</p>
+            <p id="decryptedForDisplay" class="mt-2 text-sm text-gray-500" style="word-break: break-all;"></p>
         </div>
     {% endif %}
+
+    <div class="mt-12 p-6 bg-gray-700 rounded-lg shadow-xl text-left">
+        <h3 class="text-xl font-semibold text-green-400 mb-3">PGP Public Key & Site Authenticity</h3>
+        <p class="text-gray-300 mb-2">
+            To help ensure that communications or data purportedly from this service are genuine,
+            you can use our PGP public key. This key can be used to verify signatures or encrypt messages sent to us.
+        </p>
+        <p class="text-gray-400 text-sm mb-3">
+            (Note: Standard website authenticity for .onion sites is provided by the .onion address itself. For clearnet sites, use HTTPS.)
+        </p>
+        <pre class="bg-gray-800 p-3 rounded text-gray-400 text-xs overflow-x-auto">
+-----BEGIN PGP PUBLIC KEY BLOCK-----
+Comment: This is a placeholder PGP key. Replace with your actual public key.
+
+mQENBFqN9zABCAC/1Z+q9P5Z2s2b7O6E3K1w5mY6W7F3Y4y4g6g3k7j6g3s2v7c9
+[...]
+(Your PGP Public Key ASCII Armor would go here)
+[...]
+=ABCD
+-----END PGP PUBLIC KEY BLOCK-----
+        </pre>
+        <p class="text-gray-300 mt-3 text-sm">
+            Import this key into your PGP software (like GnuPG or Kleopatra).
+        </p>
+    </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const shortenForm = document.getElementById('shortenUrlForm');
+    const originalUrlPlaintext = document.getElementById('original_url_plaintext');
+    const originalUrlEncryptedInput = document.getElementById('original_url_encrypted');
+    const showSeedBtn = document.getElementById('showSeedButton');
+
+    let userSeed = getStoredSeed(); // from encryption.js
+    let isFirstTimeUse = !userSeed;
+
+    if (userSeed) {
+        showSeedBtn.style.display = 'inline-block';
+    }
+
+    showSeedBtn.addEventListener('click', function() {
+        const currentSeed = getStoredSeed();
+        if (currentSeed) {
+            displaySeedWarning(currentSeed, 'seedPhraseDialog'); // from encryption.js
+        } else {
+            // This case should ideally not happen if button is only shown when seed exists
+            alert("No seed phrase found. Please generate a link first or check localStorage.");
+        }
+    });
+
+    if (shortenForm) {
+        shortenForm.addEventListener('submit', function(event) {
+            const urlValue = originalUrlPlaintext.value.trim();
+            if (!urlValue.startsWith('http://') && !urlValue.startsWith('https://')) {
+                // Basic client-side validation, though server won't see plaintext.
+                // Consider more robust validation if needed.
+                alert("Original URL must start with http:// or https://.");
+                event.preventDefault(); 
+                return;
+            }
+
+            userSeed = ensureSeedIsAvailable(); // from encryption.js
+
+            if (isFirstTimeUse && userSeed) {
+                displaySeedWarning(userSeed, 'seedPhraseDialog'); // from encryption.js
+                showSeedBtn.style.display = 'inline-block';
+                isFirstTimeUse = false; 
+            }
+
+            const encryptedUrl = encryptText(urlValue, userSeed); // from encryption.js
+            if (!encryptedUrl) {
+                alert("Encryption failed. Could not shorten URL. Ensure your seed phrase is correct or available, and that crypto libraries are loaded.");
+                event.preventDefault(); 
+                return;
+            }
+            originalUrlEncryptedInput.value = encryptedUrl;
+        });
+    }
+
+    const shortUrlResultBlock = document.getElementById('shortenedUrlResult');
+    {% if original_url_encrypted_for_display %} 
+    if (shortUrlResultBlock && originalUrlPlaintext) { // Check originalUrlPlaintext to ensure we are on index page after POST
+        const decryptedDisplayP = document.getElementById('decryptedForDisplay');
+        // Attempt to get the seed again, in case it was just generated.
+        const currentSeedForDisplay = getStoredSeed(); 
+        if (decryptedDisplayP && currentSeedForDisplay) {
+            // The original_url_encrypted_for_display is the one that was just submitted and encrypted.
+            const decrypted = decryptText("{{ original_url_encrypted_for_display | e }}", currentSeedForDisplay);
+            if (decrypted) {
+                decryptedDisplayP.textContent = "Original (decrypted for your confirmation): " + decrypted;
+            } else {
+                decryptedDisplayP.textContent = "Could not decrypt original URL for display. Seed might be misaligned or data corrupted.";
+            }
+        } else if (decryptedDisplayP) {
+            decryptedDisplayP.textContent = "Seed phrase not found; cannot decrypt for display.";
+        }
+    }
+    {% endif %}
+});
+</script>
 {% endblock %}
