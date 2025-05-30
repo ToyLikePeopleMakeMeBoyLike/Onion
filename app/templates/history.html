@@ -50,7 +50,7 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const seedPhrase = getStoredSeed(); // From encryption.js
+    let seedPhrase = getStoredSeed(); // Use 'let' to allow reassignment
     const historyTableBody = document.getElementById('historyTableBody');
     const noSeedMessageDiv = document.getElementById('noSeedHistoryMessage');
     const urlsData = {{ urls | tojson | safe }}; // Get URL data from Flask
@@ -73,13 +73,26 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function renderHistoryTable() {
+        // This function will now use the 'seedPhrase' variable from this closure,
+        // which will be updated by the event listener.
         if (!historyTableBody) return;
-        historyTableBody.innerHTML = ''; // Clear existing rows
+        historyTableBody.innerHTML = ''; 
 
-        if (!seedPhrase && urlsData.length > 0) {
-            if (noSeedMessageDiv) noSeedMessageDiv.style.display = 'block';
-            // Optionally disable edit/reorder features if no seed
-            return;
+        if (!seedPhrase && urlsData.length > 0) { // Check the updated seedPhrase
+            if (noSeedMessageDiv) {
+                noSeedMessageDiv.style.display = 'block';
+                noSeedMessageDiv.innerHTML = 'Seed phrase not found in this browser. '; // Use innerHTML to add button
+                
+                const enterSeedButton = document.createElement('button');
+                enterSeedButton.textContent = 'Enter Seed Phrase';
+                enterSeedButton.className = 'ml-2 underline text-blue-400 hover:text-blue-300';
+                enterSeedButton.onclick = function() {
+                    openSeedManagementDialog(); // This function is from encryption.js
+                };
+                noSeedMessageDiv.appendChild(enterSeedButton);
+                noSeedMessageDiv.appendChild(document.createTextNode(' to decrypt history.'));
+            }
+            return; // Don't render table rows if no seed
         }
         if (noSeedMessageDiv) noSeedMessageDiv.style.display = 'none';
 
@@ -296,7 +309,11 @@ document.addEventListener('DOMContentLoaded', function() {
         if (noSeedMessageDiv) noSeedMessageDiv.style.display = 'none'; // Hide seed message if no URLs anyway
     }
 
-
+    document.addEventListener('seedUpdated', function() {
+        console.log('History.html JS: seedUpdated event received.');
+        seedPhrase = getStoredSeed(); // Crucial: Update the seedPhrase variable
+        renderHistoryTable(); 
+    });
 });
 </script>
 {% endblock %}

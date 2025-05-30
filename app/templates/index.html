@@ -86,14 +86,47 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     showSeedBtn.addEventListener('click', function() {
-        const currentSeed = getStoredSeed();
-        if (currentSeed) {
-            displaySeedWarning(currentSeed, 'seedPhraseDialog'); // from encryption.js
-        } else {
-            // This case should ideally not happen if button is only shown when seed exists
-            alert("No seed phrase found. Please generate a link first or check localStorage.");
-        }
+        // Calls the new dialog function from encryption.js.
+        // No arguments means it will try to display existing seed or an empty state.
+        openSeedManagementDialog(); 
     });
+
+    // Add event listeners for the new seed management dialog buttons
+    const saveSeedBtnDialog = document.getElementById('saveSeedButton');
+    const clearSeedBtnDialog = document.getElementById('clearSeedButton');
+    const closeSeedDialogBtn = document.getElementById('closeSeedDialogButton');
+    const seedDialog = document.getElementById('seedManagementDialog'); // Get the dialog itself
+
+    if (saveSeedBtnDialog) {
+        saveSeedBtnDialog.addEventListener('click', function() {
+            saveSeedFromInput(); // This function is from encryption.js
+            // After saving, the `saveSeedFromInput` function in encryption.js
+            // already updates the display and status message.
+            // It also dispatches 'seedUpdated', which could be used by other listeners if needed.
+            // We might want to ensure the 'Show My Seed' button is visible if a seed is now saved.
+            if (getStoredSeed()) {
+                 showSeedBtn.style.display = 'inline-block';
+            }
+        });
+    }
+
+    if (clearSeedBtnDialog) {
+        clearSeedBtnDialog.addEventListener('click', function() {
+            if (confirm("Are you sure you want to clear the seed phrase from this browser's storage? This action cannot be undone and you will lose access to existing links unless you have a backup of your seed phrase.")) {
+                clearStoredSeedFromDialog(); // This function is from encryption.js
+                // After clearing, ensure the 'Show My Seed' button is hidden.
+                showSeedBtn.style.display = 'none';
+            }
+        });
+    }
+
+    if (closeSeedDialogBtn) {
+        closeSeedDialogBtn.addEventListener('click', function() {
+            if (seedDialog) seedDialog.style.display = 'none';
+            const seedActionStatus = document.getElementById('seedActionStatus');
+            if (seedActionStatus) seedActionStatus.textContent = ''; // Clear status on close
+        });
+    }
 
     if (shortenForm) {
         shortenForm.addEventListener('submit', function(event) {
@@ -108,13 +141,20 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             userSeed = ensureSeedIsAvailable(); // from encryption.js
+            // ensureSeedIsAvailable now calls openSeedManagementDialog(seed) if it's a new seed.
             console.log('Index.html JS: Seed after ensureSeedIsAvailable (first 10 chars):', userSeed ? userSeed.substring(0, 10) + '...' : 'null/undefined');
 
             if (isFirstTimeUse && userSeed) {
-                displaySeedWarning(userSeed, 'seedPhraseDialog'); // from encryption.js
+                // The call to displaySeedWarning (now openSeedManagementDialog) is handled by ensureSeedIsAvailable.
+                // We just need to make sure the button is visible.
                 showSeedBtn.style.display = 'inline-block';
-                isFirstTimeUse = false; 
+                isFirstTimeUse = false; // Prevent re-showing the "new seed" specific dialog on subsequent submits in this session
+            } else if (userSeed && !isFirstTimeUse) {
+                // If a seed exists and it's not the first time, ensure button is visible.
+                // This handles cases where user manually saves a seed then shortens another link.
+                 showSeedBtn.style.display = 'inline-block';
             }
+
 
             console.log('Index.html JS: Attempting to encrypt urlValue (first 10 chars):', urlValue ? urlValue.substring(0, 10) + '...' : 'null/undefined');
             const encryptedUrl = encryptText(urlValue, userSeed); // from encryption.js
