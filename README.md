@@ -12,18 +12,43 @@ This project is a simple URL shortener service, designed with operational securi
 ## Development Setup
 
 1.  **Prerequisites**:
-    *   Python 3.x
-    *   `pip`
+    *   Python 3.x (python3 recommended)
+    *   `pip` (usually comes with Python)
 
-2.  **Installation**:
-    *   Clone the repository.
-    *   Install dependencies: `pip install -r requirements.txt`
-    *   (The `scripts/run_dev.sh` script can also handle database initialization on first run).
+2.  **Environment Setup & Installation**:
+    *   **Clone the repository**:
+        ```bash
+        git clone <repository_url>
+        cd <repository_directory>
+        ```
+    *   **Create and activate a virtual environment**:
+        It's highly recommended to use a virtual environment to manage project dependencies.
+        ```bash
+        python3 -m venv .venv
+        source .venv/bin/activate  # On Windows use: .venv\Scripts\activate
+        ```
+    *   **Install dependencies**:
+        Once the virtual environment is activated, install the required packages:
+        ```bash
+        pip install -r requirements.txt
+        ```
+    *   **Make the development script executable**:
+        ```bash
+        chmod +x scripts/run_dev.sh
+        ```
 
 3.  **Running the Development Server**:
-    *   Execute the development script: `bash scripts/run_dev.sh`
+    *   **Ensure your virtual environment is active.**
+    *   Execute the development script:
+        ```bash
+        bash scripts/run_dev.sh
+        ```
+        Alternatively, if you've made it executable and it's in your PATH or current directory:
+        ```bash
+        ./scripts/run_dev.sh
+        ```
     *   The application will be available at `http://localhost:5000`.
-    *   The script will automatically initialize the SQLite database (`instance/database.db`) if it doesn't exist.
+    *   The script will automatically initialize the SQLite database (`instance/database.db`) if it doesn't exist on the first run (after dependencies are installed and `flask` command is available).
 
 ## Operational Security (OpSec) Notes
 
