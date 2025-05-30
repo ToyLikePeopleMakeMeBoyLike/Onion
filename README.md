@@ -58,3 +58,4 @@ This project is a simple URL shortener service, designed with operational securi
 *   **Server Hardening**: If deploying, ensure standard server hardening practices and configure your web server (e.g., Gunicorn) and Tor securely.
 *   **No External Requests by Default**: The core application does not make external requests beyond serving user needs.
 *   **Development vs. Production**: The `run_dev.sh` script uses the Flask development server. For production, use a robust WSGI server like Gunicorn (see `Dockerfile` for an example).
+...
