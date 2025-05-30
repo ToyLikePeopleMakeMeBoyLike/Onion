@@ -18,7 +18,7 @@ export FLASK_ENV=development # Enables debug mode and reloader
 INSTANCE_PATH="instance"
 DATABASE_FILE="$INSTANCE_PATH/database.db"
 
-if; then
+if [ ! -f "$DATABASE_FILE" ]; then
   echo "Database file not found at $DATABASE_FILE. Initializing database..."
   # Ensure instance folder exists for flask init-db
   mkdir -p $INSTANCE_PATH

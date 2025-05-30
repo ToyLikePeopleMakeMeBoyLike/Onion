@@ -1,4 +1,5 @@
 import sqlite3
+import click
 from flask import current_app, g
 from flask.cli import with_appcontext
 
@@ -8,11 +9,11 @@ def get_db():
     """
     if 'db' not in g:
         g.db = sqlite3.connect(
-            current_app.config,
+            current_app.config['DATABASE'], 
             detect_types=sqlite3.PARSE_DECLTYPES
         )
         g.db.row_factory = sqlite3.Row
-        current_app.logger.debug(f"Database connection opened for {current_app.config}")
+        current_app.logger.debug(f"Database connection opened for {current_app.config['DATABASE']}")
     return g.db
 
 def close_db(e=None):
@@ -52,7 +53,7 @@ def query_db(query, args=(), one=False):
     cur = get_db().execute(query, args)
     rv = cur.fetchall()
     cur.close()
-    return (rv if rv else None) if one else rv
+    return (rv[0] if rv else None) if one else rv
 
 # Helper for executing DML statements
 def execute_db(sql, args=()):
@@ -63,6 +64,3 @@ def execute_db(sql, args=()):
     last_row_id = cur.lastrowid
     cur.close()
     return last_row_id
-
-# Add this import at the top
-import click

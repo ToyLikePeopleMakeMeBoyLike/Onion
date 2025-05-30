@@ -35,5 +35,5 @@ def create_app(test_config=None):
     app.register_blueprint(main.bp)
     # app.add_url_rule('/', endpoint='index') # If main.bp doesn't define '/'
 
-    app.logger.info(f"Application created. Database at: {app.config}")
+    app.logger.info(f"Application created. Database at: {app.config['DATABASE']}")
     return app
